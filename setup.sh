@@ -9,8 +9,6 @@ fi
 
 REPO_DIR="/local/repository"
 DATA_ROOT="${1:-/local}"
-JUPYTER_TOKEN="${2:?CloudLab Jupyter token was not provided}"
-OPENCODE_PASSWORD="${3:?CloudLab OpenCode password was not provided}"
 ENV_FILE="${REPO_DIR}/.env"
 LOG_FILE="/var/log/cloudlab-jupyter-opencode-setup.log"
 
@@ -77,22 +75,11 @@ mkdir -p "${JUPYTER_DATA_DIR}"
 chown -R 1000:100 "${JUPYTER_DATA_DIR}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
-    umask 077
-
-    cat > "${ENV_FILE}" <<EOF
-JUPYTER_PORT=8888
-OPENCODE_PORT=4096
-BIND_ADDRESS=0.0.0.0
-JUPYTER_DATA_DIR=${JUPYTER_DATA_DIR}
-OPENCODE_PROJECT_DIR=project
-JUPYTER_TOKEN=${JUPYTER_TOKEN}
-OPENCODE_SERVER_USERNAME=opencode
-OPENCODE_SERVER_PASSWORD=${OPENCODE_PASSWORD}
-EOF
-    chmod 600 "${ENV_FILE}"
-else
-    echo "Keeping existing ${ENV_FILE} credentials."
+    echo "ERROR: ${ENV_FILE} was not created by the CloudLab startup playbook." >&2
+    exit 1
 fi
+
+echo "Using credentials written by the CloudLab startup playbook."
 
 cd "${REPO_DIR}"
 docker compose up --build -d

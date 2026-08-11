@@ -36,8 +36,8 @@ port forwarding as described in README.md.
 import re
 
 import geni.portal as portal
-import geni.rspec.pg as rspec
 import geni.rspec.igext as ig
+import geni.rspec.emulab.ansible as ansible
 import geni.rspec.emulab  # Loads CloudLab/Emulab RSpec extensions.
 
 
@@ -183,7 +183,8 @@ pc.verifyParameters()
 request = pc.makeRequestRSpec()
 
 # CloudLab generates these once per experiment and exposes them in the
-# rendered Profile Instructions. The Execute command receives the same values.
+# rendered Profile Instructions. Ansible receives the same values through
+# password-backed overrides.
 jupyter_token = ig.Password("jupyterToken")
 opencode_password = ig.Password("opencodePassword")
 request.addResource(jupyter_token)
@@ -219,15 +220,30 @@ else:
     data_root = "/local"
 
 # Repository-based profiles are cloned automatically to /local/repository.
-# Execute services run on every boot, so setup.sh is intentionally idempotent.
-node.addService(
-    rspec.Execute(
-        shell="bash",
-        command=(
-            "/bin/bash /local/repository/setup.sh "
-            + data_root
-            + " '{password-jupyterToken}' '{password-opencodePassword}'"
-        ),
+# Ansible runs on every boot, so the playbook and setup.sh are idempotent.
+node.addOverride(
+    ansible.Override(
+        "jupyter_token",
+        source="password",
+        source_name="jupyterToken",
+    )
+)
+node.addOverride(
+    ansible.Override(
+        "opencode_password",
+        source="password",
+        source_name="opencodePassword",
+    )
+)
+node.addOverride(ansible.Override("data_root", value=data_root))
+
+# Playbook is a Resource because current geni-lib releases have a broken
+# addPlaybook wrapper; the Playbook resource serializes correctly directly.
+request.addResource(
+    ansible.Playbook(
+        "cloudlab_setup",
+        path="cloudlab-setup.yml",
+        become="root",
     )
 )
 

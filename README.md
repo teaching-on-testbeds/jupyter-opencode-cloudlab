@@ -15,9 +15,10 @@ CloudLab repository-based profiles automatically clone this repository to:
 ```
 
 The top-level `profile.py` requests one physical node or Xen VM and registers
-`/local/repository/setup.sh` as an Execute service. The startup script installs
-Docker, creates per-experiment credentials, and starts JupyterLab and OpenCode.
-It is idempotent because CloudLab Execute services run again after a node reboot.
+the repository-local Ansible startup playbook. The playbook writes the
+CloudLab-generated credentials, then `setup.sh` installs Docker and starts
+JupyterLab and OpenCode. It is idempotent because the startup playbook runs
+again after a node reboot with the same per-experiment credentials.
 
 ### Parameters
 
@@ -33,7 +34,8 @@ node type. ARM node types are not supported by this image.
 
 If a temporary filesystem is enabled, both the Jupyter workspace and Docker's
 image/layer storage are placed under that filesystem. Otherwise they use `/local`.
-All of this data is ephemeral and disappears when the CloudLab experiment terminates.
+These paths survive a node reboot but are ephemeral and disappear when the
+CloudLab experiment terminates.
 
 ## Create the CloudLab profile
 
