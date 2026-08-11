@@ -1,0 +1,4 @@
+.env
+jupyter-data/
+__pycache__/
+*.py[cod]

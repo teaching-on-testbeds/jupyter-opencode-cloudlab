@@ -220,31 +220,39 @@ else:
     data_root = "/local"
 
 # Repository-based profiles are cloned automatically to /local/repository.
-# Ansible runs on every boot, so the playbook and setup.sh are idempotent.
-node.addOverride(
+# CloudLab's Ansible bootstrap discovers playbooks through declared roles.
+setup_role = ansible.Role(
+    "cloudlab_setup",
+    path=".",
+    group="all",
+    auto=True,
+    playbooks=[
+        ansible.Playbook(
+            "cloudlab_setup",
+            path="cloudlab-setup.yml",
+            become="root",
+        )
+    ],
+)
+request.addResource(setup_role)
+node.bindRole(ansible.RoleBinding("cloudlab_setup"))
+
+# Password overrides are global because CloudLab's bootstrap consumes them
+# from the generated global overrides file.
+request.addResource(
     ansible.Override(
         "jupyter_token",
         source="password",
         source_name="jupyterToken",
     )
 )
-node.addOverride(
+request.addResource(
     ansible.Override(
         "opencode_password",
         source="password",
         source_name="opencodePassword",
     )
 )
-node.addOverride(ansible.Override("data_root", value=data_root))
-
-# Playbook is a Resource because current geni-lib releases have a broken
-# addPlaybook wrapper; the Playbook resource serializes correctly directly.
-request.addResource(
-    ansible.Playbook(
-        "cloudlab_setup",
-        path="cloudlab-setup.yml",
-        become="root",
-    )
-)
+request.addResource(ansible.Override("data_root", value=data_root))
 
 pc.printRequestRSpec(request)
