@@ -37,7 +37,7 @@ import re
 
 import geni.portal as portal
 import geni.rspec.igext as ig
-import geni.rspec.emulab.ansible as ansible
+import geni.rspec.pg as rspec
 import geni.rspec.emulab  # Loads CloudLab/Emulab RSpec extensions.
 
 
@@ -183,8 +183,8 @@ pc.verifyParameters()
 request = pc.makeRequestRSpec()
 
 # CloudLab generates these once per experiment and exposes them in the
-# rendered Profile Instructions. Ansible receives the same values through
-# password-backed overrides.
+# rendered Profile Instructions. The startup service reads the same encrypted
+# values from the experiment manifest.
 jupyter_token = ig.Password("jupyterToken")
 opencode_password = ig.Password("opencodePassword")
 request.addResource(jupyter_token)
@@ -220,39 +220,15 @@ else:
     data_root = "/local"
 
 # Repository-based profiles are cloned automatically to /local/repository.
-# CloudLab's Ansible bootstrap discovers playbooks through declared roles.
-setup_role = ansible.Role(
-    "cloudlab_setup",
-    path=".",
-    group="all",
-    auto=True,
-    playbooks=[
-        ansible.Playbook(
-            "cloudlab_setup",
-            path="cloudlab-setup.yml",
-            become="root",
-        )
-    ],
-)
-request.addResource(setup_role)
-node.bindRole(ansible.RoleBinding("cloudlab_setup"))
-
-# Password overrides are global because CloudLab's bootstrap consumes them
-# from the generated global overrides file.
-request.addResource(
-    ansible.Override(
-        "jupyter_token",
-        source="password",
-        source_name="jupyterToken",
+# Execute services run after the repository is available and on node boots.
+node.addService(
+    rspec.Execute(
+        shell="bash",
+        command=(
+            "/local/repository/cloudlab-startup.sh "
+            + data_root
+        ),
     )
 )
-request.addResource(
-    ansible.Override(
-        "opencode_password",
-        source="password",
-        source_name="opencodePassword",
-    )
-)
-request.addResource(ansible.Override("data_root", value=data_root))
 
 pc.printRequestRSpec(request)

@@ -15,10 +15,11 @@ CloudLab repository-based profiles automatically clone this repository to:
 ```
 
 The top-level `profile.py` requests one physical node or Xen VM and registers
-the repository-local Ansible startup playbook. The playbook writes the
-CloudLab-generated credentials, then `setup.sh` installs Docker and starts
-JupyterLab and OpenCode. It is idempotent because the startup playbook runs
-again after a node reboot with the same per-experiment credentials.
+a repository-local startup service. The service decrypts the CloudLab-generated
+credentials from the experiment manifest, writes `.env`, then `setup.sh`
+installs Docker and starts JupyterLab and OpenCode. It is idempotent because
+the service runs again after a node reboot with the same per-experiment
+credentials.
 
 ### Parameters
 

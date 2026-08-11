@@ -75,11 +75,11 @@ mkdir -p "${JUPYTER_DATA_DIR}"
 chown -R 1000:100 "${JUPYTER_DATA_DIR}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
-    echo "ERROR: ${ENV_FILE} was not created by the CloudLab startup playbook." >&2
+    echo "ERROR: ${ENV_FILE} was not created by the CloudLab startup service." >&2
     exit 1
 fi
 
-echo "Using credentials written by the CloudLab startup playbook."
+echo "Using credentials written by the CloudLab startup service."
 
 cd "${REPO_DIR}"
 docker compose up --build -d
