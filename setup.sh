@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# CloudLab Execute services run as the experiment user. Re-run as root before
+# opening the system log or performing package and Docker administration.
+if [[ ${EUID} -ne 0 ]]; then
+    exec sudo /bin/bash "$0" "$@"
+fi
+
 REPO_DIR="/local/repository"
 DATA_ROOT="${1:-/local}"
 ENV_FILE="${REPO_DIR}/.env"
