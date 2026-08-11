@@ -7,21 +7,23 @@ experiment node and runs the included startup script.
 Instructions:
 Wait for the experiment to become ready and for the startup service to finish.
 
-The repository is available on the node at:
+## JupyterLab
 
-    /local/repository
+URL: http://{host-node}:8888/lab?token={password-jupyterToken}
 
-To view the generated Jupyter/OpenCode credentials, run:
+Token: `{password-jupyterToken}`
 
-    sudo cat /local/repository/.env
+## OpenCode
 
-JupyterLab:
+URL: http://{host-node}:4096
 
-    http://{host-node}:8888/lab
+Username: `opencode`
 
-OpenCode:
+Password: `{password-opencodePassword}`
 
-    http://{host-node}:4096
+## SSH
+
+The repository is available at `/local/repository`.
 
 If the services are still starting, inspect:
 
@@ -35,6 +37,7 @@ import re
 
 import geni.portal as portal
 import geni.rspec.pg as rspec
+import geni.rspec.igext as ig
 import geni.rspec.emulab  # Loads CloudLab/Emulab RSpec extensions.
 
 
@@ -179,6 +182,13 @@ pc.verifyParameters()
 
 request = pc.makeRequestRSpec()
 
+# CloudLab generates these once per experiment and exposes them in the
+# rendered Profile Instructions. The Execute command receives the same values.
+jupyter_token = ig.Password("jupyterToken")
+opencode_password = ig.Password("opencodePassword")
+request.addResource(jupyter_token)
+request.addResource(opencode_password)
+
 if params.resourceType == "xenvm":
     node = request.XenVM("node")
     node.cores = params.xenCores
@@ -213,7 +223,11 @@ else:
 node.addService(
     rspec.Execute(
         shell="bash",
-        command="/bin/bash /local/repository/setup.sh " + data_root,
+        command=(
+            "/bin/bash /local/repository/setup.sh "
+            + data_root
+            + " '{password-jupyterToken}' '{password-opencodePassword}'"
+        ),
     )
 )
 

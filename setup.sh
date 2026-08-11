@@ -9,6 +9,8 @@ fi
 
 REPO_DIR="/local/repository"
 DATA_ROOT="${1:-/local}"
+JUPYTER_TOKEN="${2:?CloudLab Jupyter token was not provided}"
+OPENCODE_PASSWORD="${3:?CloudLab OpenCode password was not provided}"
 ENV_FILE="${REPO_DIR}/.env"
 LOG_FILE="/var/log/cloudlab-jupyter-opencode-setup.log"
 
@@ -32,7 +34,7 @@ install_docker() {
 
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y ca-certificates curl gnupg openssl
+    apt-get install -y ca-certificates curl gnupg
 
     install -m 0755 -d /etc/apt/keyrings
     if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
@@ -76,8 +78,6 @@ chown -R 1000:100 "${JUPYTER_DATA_DIR}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
     umask 077
-    JUPYTER_TOKEN="$(openssl rand -hex 24)"
-    OPENCODE_PASSWORD="$(openssl rand -hex 24)"
 
     cat > "${ENV_FILE}" <<EOF
 JUPYTER_PORT=8888
@@ -99,7 +99,7 @@ docker compose up --build -d
 
 echo
 echo "[$(date -Is)] Setup complete."
-echo "Credentials: sudo cat ${ENV_FILE}"
+echo "Credentials are shown in the CloudLab Profile Instructions."
 echo "Services:"
 echo "  JupyterLab: http://$(hostname -f):8888/lab"
 echo "  OpenCode:   http://$(hostname -f):4096"

@@ -53,11 +53,9 @@ CloudLab documentation:
 When the experiment is ready, CloudLab substitutes the node FQDN into the
 profile Instructions via `{host-node}`.
 
-Generated credentials are stored on the node in:
-
-```bash
-sudo cat /local/repository/.env
-```
+The generated Jupyter token and OpenCode password are displayed directly in
+the CloudLab experiment's Profile Instructions. They are generated once per
+experiment and reused by the running services.
 
 Then open:
 
