@@ -20,7 +20,7 @@ echo "[$(date -Is)] Starting CloudLab Jupyter/OpenCode startup"
 /usr/local/etc/emulab/tmcc.bin geni_manifest > "${MANIFEST_FILE}"
 /usr/local/etc/emulab/tmcc.bin geni_key > "${KEY_FILE}"
 
-python3 - "${MANIFEST_FILE}" "${KEY_FILE}" "${ENV_FILE}" "${DATA_ROOT}" <<'PY'
+python3 - "${MANIFEST_FILE}" "${KEY_FILE}" "${ENV_FILE}" "${DATA_ROOT}" "${PUBLIC_GIT_URL}" <<'PY'
 import os
 import subprocess
 import sys
@@ -28,7 +28,8 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-manifest_path, key_path, env_path, data_root = map(Path, sys.argv[1:])
+manifest_path, key_path, env_path, data_root = map(Path, sys.argv[1:5])
+public_git_url = sys.argv[5]
 manifest = manifest_path.read_bytes()
 manifest = manifest[manifest.find(b"<") :]
 root = ET.fromstring(manifest)
@@ -76,7 +77,7 @@ content = "\n".join(
         "BIND_ADDRESS=0.0.0.0",
         f"JUPYTER_DATA_DIR={data_root}/jupyter-data",
         "OPENCODE_PROJECT_DIR=project",
-        f"OPENCODE_PROJECT_GIT_URL={PUBLIC_GIT_URL}",
+        f"OPENCODE_PROJECT_GIT_URL={public_git_url}",
         f"JUPYTER_TOKEN={passwords['jupyterToken']}",
         "OPENCODE_SERVER_USERNAME=opencode",
         f"OPENCODE_SERVER_PASSWORD={passwords['opencodePassword']}",
