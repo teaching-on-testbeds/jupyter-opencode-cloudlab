@@ -4,8 +4,8 @@ This profile sets up a CloudLab node with JupyterLab, VSCode, and OpenCode.
 
 With this profile:
 
-* you can work with your code in JupyterLab or VSCode,
-* and you can also interact with your code, the coding environment, and the CloudLab host itself by giving natural language commands to OpenCode, an LLM coding assistant.
+- you can work with your code in JupyterLab or VSCode,
+- and you can also interact with your code, the coding environment, and the CloudLab host itself by giving natural language commands to OpenCode, an LLM coding assistant.
 
 OpenCode comes pre-configured with access to two free and anonymous LLM inference providers.
 
