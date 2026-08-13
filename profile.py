@@ -214,9 +214,13 @@ else:
 
 node.disk_image = params.diskImage
 
-# CloudLab convention: a 0GB local blockstore uses all available space.
 blockstore = node.Blockstore("scratch", "/mydata")
-blockstore.size = "0GB"
+if params.resourceType == "xenvm":
+    # Xen topology validation requires an explicit positive blockstore size.
+    blockstore.size = f"{params.xenDisk}GB"
+else:
+    # A 0GB local blockstore uses all available space on physical nodes.
+    blockstore.size = "0GB"
 blockstore.placement = "any"
 data_root = "/mydata"
 
