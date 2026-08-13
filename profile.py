@@ -34,12 +34,16 @@ port forwarding as described in README.md.
 """
 
 import re
-import shlex
 
 import geni.portal as portal
 import geni.rspec.igext as ig
 import geni.rspec.pg as rspec
 import geni.rspec.emulab  # Loads CloudLab/Emulab RSpec extensions.
+
+
+def shell_quote(value):
+    """Quote a value for the shell available on the CloudLab node."""
+    return "'" + value.replace("'", "'\"'\"'") + "'"
 
 
 pc = portal.Context()
@@ -249,9 +253,9 @@ node.addService(
         shell="bash",
         command=(
             "/local/repository/cloudlab-startup.sh "
-            + shlex.quote(data_root)
+            + shell_quote(data_root)
             + " "
-            + shlex.quote(params.publicGitUrl)
+            + shell_quote(params.publicGitUrl)
         ),
     )
 )
