@@ -29,6 +29,7 @@ credentials.
 - **Temporary Filesystem Size**: requested ephemeral local storage in GB.
 - **Temp Filesystem Max Space**: use all available local storage (`0GB` blockstore convention).
 - **Temporary Filesystem Mount Point**: defaults to `/mydata`.
+- **Public Git Repository URL**: optional advanced HTTPS URL to clone into the project directory.
 
 The supplied Jupyter/PyTorch CUDA container is x86-64; select an x86-64 CloudLab
 node type. ARM node types are not supported by this image.
@@ -126,9 +127,9 @@ docker compose up --build -d
 ```
 
 On first startup, the container creates
-`/home/jovyan/work/<OPENCODE_PROJECT_DIR>` as a Git repository and registers it
-with OpenCode before starting JupyterLab. The default Kilo Anonymous provider
-and `Kilo Auto Free` model are configured automatically. JupyterLab uses
+`/home/jovyan/work/<OPENCODE_PROJECT_DIR>` as a Git repository. The default
+Kilo Anonymous provider and `Kilo Auto Free` model are configured
+automatically. JupyterLab starts alongside OpenCode and uses
 `/home/jovyan/work` as its root.
 
 The JupyterLab Launcher also includes a **VS Code** tile. It opens a
@@ -139,9 +140,23 @@ OpenCode project directory. Rebuild the image after enabling it:
 docker compose up --build -d
 ```
 
-The OpenCode web client keeps its project switcher in browser storage. The
-startup registration is needed because `opencode web` starts without an
-ambient project instance; it makes `/home/jovyan/work/<OPENCODE_PROJECT_DIR>` a
-known Git project in OpenCode's API. A browser profile that has never opened it
-still needs **Add project** once because that client-side list cannot be
-written by the server.
+The OpenCode Profile Instructions link opens the project directly with
+`/<base64(directory)>/session`. OpenCode creates the project instance when the
+browser requests that route, so the home page does not need to discover it
+first.
+
+The profile uses the maximum available temporary filesystem by default. Docker
+stores its images, layers, and named volumes under `/mydata/docker`. The
+project directory maps to `/mydata/jupyter-data/project` on the host.
+
+The advanced **Public Git Repository URL** parameter accepts an HTTPS URL. On
+the first startup, the container runs `git clone <url> project`, so the
+repository contents become `/home/jovyan/work/project` itself. That directory
+maps to `/mydata/jupyter-data/project`. A later restart keeps the existing
+checkout and does not clone over it. The container refuses to use a non-empty
+non-Git directory when a clone URL is configured.
+
+The bind-mounted project and named OpenCode volumes persist across container
+restarts and normal `docker compose up` runs. CloudLab's `/mydata` filesystem
+is temporary for the experiment, so the data disappears when the experiment
+terminates. `docker compose down -v` also deletes the named OpenCode volumes.

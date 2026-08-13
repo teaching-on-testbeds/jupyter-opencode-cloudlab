@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 REPO_DIR="/local/repository"
 DATA_ROOT="${1:-/local}"
+PUBLIC_GIT_URL="${2:-}"
 ENV_FILE="${REPO_DIR}/.env"
 TMP_DIR="$(mktemp -d)"
 
@@ -75,6 +76,7 @@ content = "\n".join(
         "BIND_ADDRESS=0.0.0.0",
         f"JUPYTER_DATA_DIR={data_root}/jupyter-data",
         "OPENCODE_PROJECT_DIR=project",
+        f"OPENCODE_PROJECT_GIT_URL={PUBLIC_GIT_URL}",
         f"JUPYTER_TOKEN={passwords['jupyterToken']}",
         "OPENCODE_SERVER_USERNAME=opencode",
         f"OPENCODE_SERVER_PASSWORD={passwords['opencodePassword']}",

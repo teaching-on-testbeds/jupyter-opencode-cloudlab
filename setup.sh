@@ -52,16 +52,20 @@ install_docker() {
 
 install_docker
 
-# Put Docker's own image/layer storage on the selected data root when possible.
-# This is especially useful with CloudLab's optional temporary filesystem.
+# Put Docker's image, layer, and named-volume storage on the selected data
+# root. The CloudLab default is /mydata.
 DOCKER_DATA_ROOT="${DATA_ROOT}/docker"
 mkdir -p "${DOCKER_DATA_ROOT}"
-if [[ ! -s /etc/docker/daemon.json ]]; then
+if [[ ! -s /etc/docker/daemon.json ]] || ! grep -q '"data-root"' /etc/docker/daemon.json; then
     cat > /etc/docker/daemon.json <<EOF
 {
   "data-root": "${DOCKER_DATA_ROOT}"
 }
 EOF
+elif ! grep -q "\"data-root\": \"${DOCKER_DATA_ROOT}\"" /etc/docker/daemon.json; then
+    echo "ERROR: /etc/docker/daemon.json uses a different Docker data root." >&2
+    echo "       Expected Docker storage under ${DOCKER_DATA_ROOT}." >&2
+    exit 1
 fi
 
 systemctl enable docker

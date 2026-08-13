@@ -2,7 +2,9 @@
 set -Eeuo pipefail
 
 WORKSPACE=/home/jovyan/work
+PROJECT_GIT_URL="${OPENCODE_PROJECT_GIT_URL:-}"
 PROJECT_DIR="${WORKSPACE}/${OPENCODE_PROJECT_DIR:-project}"
+export CODE_WORKINGDIR="${PROJECT_DIR}"
 OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 OPENCODE_CONFIG_FILE="${OPENCODE_CONFIG_DIR}/opencode.json"
 OPENCODE_CONFIG_JSONC="${OPENCODE_CONFIG_DIR}/opencode.jsonc"
@@ -17,7 +19,14 @@ elif ! grep -q '"kilo-anon"' "${OPENCODE_CONFIG_FILE}" "${OPENCODE_CONFIG_JSONC}
 fi
 
 mkdir -p "${PROJECT_DIR}"
-if [[ ! -d "${PROJECT_DIR}/.git" ]]; then
+shopt -s dotglob nullglob
+project_entries=("${PROJECT_DIR}"/*)
+if [[ -n "${PROJECT_GIT_URL}" && ${#project_entries[@]} -eq 0 ]]; then
+    git clone "${PROJECT_GIT_URL}" "${PROJECT_DIR}"
+elif [[ -n "${PROJECT_GIT_URL}" && ! -d "${PROJECT_DIR}/.git" ]]; then
+    echo "Project directory is not empty and is not a Git repository: ${PROJECT_DIR}" >&2
+    exit 1
+elif [[ ! -d "${PROJECT_DIR}/.git" ]]; then
     git init --initial-branch=main "${PROJECT_DIR}"
 fi
 if ! grep -qxF '.env' "${PROJECT_DIR}/.gitignore" 2>/dev/null; then
@@ -31,40 +40,17 @@ opencode web \
     --port "${OPENCODE_PORT:-4096}" &
 OPENCODE_PID=$!
 
-shutdown() {
-    trap - SIGINT SIGTERM EXIT
-    local pids=("${OPENCODE_PID}")
-    if [[ -n "${JUPYTER_PID:-}" ]]; then
-        pids+=("${JUPYTER_PID}")
-    fi
-    kill -TERM "${pids[@]}" 2>/dev/null || true
-    wait "${pids[@]}" 2>/dev/null || true
-}
-
-trap shutdown SIGINT SIGTERM EXIT
-
-OPENCODE_URL="http://127.0.0.1:${OPENCODE_PORT:-4096}"
-for attempt in {1..60}; do
-    if curl --fail --silent --show-error \
-        --user "${OPENCODE_SERVER_USERNAME}:${OPENCODE_SERVER_PASSWORD}" \
-        "${OPENCODE_URL}/global/health" >/dev/null \
-        && curl --fail --silent --show-error \
-        --user "${OPENCODE_SERVER_USERNAME}:${OPENCODE_SERVER_PASSWORD}" \
-        --get \
-        --data-urlencode "directory=${PROJECT_DIR}" \
-        "${OPENCODE_URL}/project" >/dev/null; then
-        break
-    fi
-    if [[ "${attempt}" -eq 60 ]]; then
-        echo "OpenCode did not register project ${PROJECT_DIR}" >&2
-        exit 1
-    fi
-    sleep 1
-done
-
 start-notebook.py \
     --ServerApp.root_dir="${WORKSPACE}" &
 JUPYTER_PID=$!
+
+shutdown() {
+    trap - SIGINT SIGTERM EXIT
+    kill -TERM "${OPENCODE_PID}" "${JUPYTER_PID}" 2>/dev/null || true
+    wait "${OPENCODE_PID}" "${JUPYTER_PID}" 2>/dev/null || true
+}
+
+trap shutdown SIGINT SIGTERM EXIT
 
 set +e
 wait -n "${OPENCODE_PID}" "${JUPYTER_PID}"

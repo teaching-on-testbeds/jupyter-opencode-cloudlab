@@ -34,6 +34,8 @@ port forwarding as described in README.md.
 """
 
 import re
+import shlex
+from urllib.parse import urlparse
 
 import geni.portal as portal
 import geni.rspec.igext as ig
@@ -110,11 +112,12 @@ pc.defineParameter(
     "tempFileSystemMax",
     "Temp Filesystem Max Space",
     portal.ParameterType.BOOLEAN,
-    False,
+    True,
     advanced=True,
     longDescription=(
-        "Use all available local space for the temporary filesystem. "
-        "Leave Temporary Filesystem Size at zero when selecting this option."
+        "Use all available local space for the temporary filesystem. This is "
+        "the default. Leave Temporary Filesystem Size at zero when selecting "
+        "this option."
     ),
 )
 
@@ -125,6 +128,18 @@ pc.defineParameter(
     "/mydata",
     advanced=True,
     longDescription="Mount point for the ephemeral temporary filesystem.",
+)
+
+pc.defineParameter(
+    "publicGitUrl",
+    "Public Git Repository URL",
+    portal.ParameterType.STRING,
+    "",
+    advanced=True,
+    longDescription=(
+        "Optional HTTPS URL for a public Git repository. The repository is "
+        "cloned into the project directory on first startup."
+    ),
 )
 
 params = pc.bindParameters()
@@ -169,6 +184,21 @@ if not re.match(r"^/[A-Za-z0-9._/-]+$", params.tempFileSystemMount):
             ["tempFileSystemMount"],
         )
     )
+
+if params.publicGitUrl:
+    parsed_git_url = urlparse(params.publicGitUrl)
+    if (
+        parsed_git_url.scheme != "https"
+        or not parsed_git_url.netloc
+        or "\n" in params.publicGitUrl
+        or "\r" in params.publicGitUrl
+    ):
+        pc.reportError(
+            portal.ParameterError(
+                "Public Git Repository URL must be an HTTPS URL.",
+                ["publicGitUrl"],
+            )
+        )
 
 if params.tempFileSystemMount in ("/", "/usr", "/usr/local", "/local/repository"):
     pc.reportError(
@@ -226,7 +256,9 @@ node.addService(
         shell="bash",
         command=(
             "/local/repository/cloudlab-startup.sh "
-            + data_root
+            + shlex.quote(data_root)
+            + " "
+            + shlex.quote(params.publicGitUrl)
         ),
     )
 )
