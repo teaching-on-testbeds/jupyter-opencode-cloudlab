@@ -201,6 +201,7 @@ request.addResource(opencode_password)
 
 if params.resourceType == "xenvm":
     node = request.XenVM("node", exclusive=params.xenExclusive)
+    node.routable_control_ip = True
     if params.nodeType:
         node.xen_ptype = params.nodeType
 else:
