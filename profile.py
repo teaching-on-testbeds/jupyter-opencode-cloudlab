@@ -214,15 +214,16 @@ else:
 
 node.disk_image = params.diskImage
 
-blockstore = node.Blockstore("scratch", "/mydata")
 if params.resourceType == "xenvm":
-    # Xen topology validation requires an explicit positive blockstore size.
-    blockstore.size = "{}GB".format(params.xenDisk)
+    # Shared Xen VMs cannot request a separate local blockstore reliably
+    # across all aggregates. Use the VM disk instead.
+    data_root = "/local"
 else:
     # A 0GB local blockstore uses all available space on physical nodes.
+    blockstore = node.Blockstore("scratch", "/mydata")
     blockstore.size = "0GB"
-blockstore.placement = "any"
-data_root = "/mydata"
+    blockstore.placement = "any"
+    data_root = "/mydata"
 
 # Repository-based profiles are cloned automatically to /local/repository.
 # Execute services run after the repository is available and on node boots.

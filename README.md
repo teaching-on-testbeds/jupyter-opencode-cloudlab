@@ -13,10 +13,13 @@ Launch a JupyterLab + OpenCode environment as a repository-based CloudLab profil
 The supplied Jupyter/PyTorch CUDA container is x86-64; select an x86-64 CloudLab
 node type. ARM node types are not supported by this image.
 
-The profile requests the maximum available temporary local filesystem at
-`/mydata` (`0GB` blockstore convention). Both the Jupyter workspace and
-Docker's image/layer storage are placed under it. These paths survive a node
-reboot but are ephemeral and disappear when the CloudLab experiment terminates.
+On physical nodes, the profile requests the maximum available temporary local
+filesystem at `/mydata` (`0GB` blockstore convention). Both the Jupyter
+workspace and Docker's image/layer storage are placed under it. Xen VMs use
+their VM disk under `/local` instead, because a separate local blockstore is
+not supported consistently for shared Xen allocations. These paths survive a
+node reboot but are ephemeral and disappear when the CloudLab experiment
+terminates.
 
 ## Access the services
 
