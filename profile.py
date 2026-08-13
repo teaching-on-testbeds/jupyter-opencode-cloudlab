@@ -201,9 +201,6 @@ request.addResource(opencode_password)
 
 if params.resourceType == "xenvm":
     node = request.XenVM("node", exclusive=params.xenExclusive)
-    node.cores = params.xenCores
-    node.ram = params.xenRam
-    node.disk = params.xenDisk
     if params.nodeType:
         node.xen_ptype = params.nodeType
 else:
