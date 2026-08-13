@@ -29,6 +29,27 @@ elif [[ -n "${PROJECT_GIT_URL}" && ! -d "${PROJECT_DIR}/.git" ]]; then
 elif [[ ! -d "${PROJECT_DIR}/.git" ]]; then
     git init --initial-branch=main "${PROJECT_DIR}"
 fi
+
+if [[ "${HOST_SSH_ENABLED:-0}" == "1" ]]; then
+    cat > "${PROJECT_DIR}/HOST.md" <<'EOF'
+# CloudLab Host Access
+
+OpenCode runs inside a container. To run a command on the CloudLab host, use:
+
+```bash
+ssh -i /home/jovyan/.ssh/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes -o UpdateHostKeys=no opencode@host.docker.internal '<command>'
+```
+
+The host user has passwordless sudo. For commands that require root access, use:
+
+```bash
+ssh -i /home/jovyan/.ssh/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes -o UpdateHostKeys=no opencode@host.docker.internal 'sudo <command>'
+```
+
+The host key is pinned in `/home/jovyan/.ssh/known_hosts`. Do not disable host-key checking.
+EOF
+fi
+
 if ! grep -qxF '.env' "${PROJECT_DIR}/.gitignore" 2>/dev/null; then
     printf '\n.env\n' >> "${PROJECT_DIR}/.gitignore"
 fi

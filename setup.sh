@@ -52,6 +52,53 @@ install_docker() {
 
 install_docker
 
+configure_host_access() {
+    local ssh_dir="/etc/cloudlab-opencode-ssh"
+    local private_key="${ssh_dir}/id_ed25519"
+    local known_hosts="${ssh_dir}/known_hosts"
+
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y openssh-server sudo
+
+    if ! id opencode >/dev/null 2>&1; then
+        useradd --create-home --shell /bin/bash opencode
+    else
+        usermod --home /home/opencode --shell /bin/bash opencode
+    fi
+
+    install -d -m 0755 -o opencode -g opencode /home/opencode
+    install -d -m 0700 -o opencode -g opencode /home/opencode/.ssh
+    install -d -m 0755 "${ssh_dir}"
+    if [[ ! -f "${private_key}" ]]; then
+        ssh-keygen -q -t ed25519 -N "" -C "cloudlab-opencode-host-access" -f "${private_key}"
+    fi
+
+    install -m 0600 -o opencode -g opencode \
+        "${private_key}.pub" /home/opencode/.ssh/authorized_keys
+
+    cat > /etc/sudoers.d/opencode <<'EOF'
+opencode ALL=(ALL) NOPASSWD: ALL
+EOF
+    chmod 0440 /etc/sudoers.d/opencode
+    visudo -cf /etc/sudoers.d/opencode
+
+    : > "${known_hosts}"
+    for host_key in /etc/ssh/ssh_host_*_key.pub; do
+        read -r key_type key_value _ < "${host_key}"
+        printf 'host.docker.internal %s %s\n' "${key_type}" "${key_value}" >> "${known_hosts}"
+    done
+    chmod 0644 "${known_hosts}"
+
+    # The container runs as UID 1000 and needs read access to this key.
+    chown 1000:100 "${private_key}"
+    chmod 0600 "${private_key}"
+
+    systemctl enable --now ssh
+}
+
+configure_host_access
+
 # Put Docker's image, layer, and named-volume storage on the selected data
 # root. The CloudLab default is /mydata.
 DOCKER_DATA_ROOT="${DATA_ROOT}/docker"
@@ -87,6 +134,10 @@ echo "Using credentials written by the CloudLab startup service."
 
 cd "${REPO_DIR}"
 docker compose up --build -d
+docker compose exec -T jupyter \
+    ssh -i /home/jovyan/.ssh/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes \
+    -o UpdateHostKeys=no \
+    opencode@host.docker.internal "sudo -n true"
 
 echo
 echo "[$(date -Is)] Setup complete."

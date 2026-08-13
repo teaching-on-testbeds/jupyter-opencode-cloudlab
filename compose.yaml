@@ -17,6 +17,10 @@ services:
       - opencode-config:/home/jovyan/.config/opencode
       - opencode-cache:/home/jovyan/.cache/opencode
       - github-config:/home/jovyan/.config/gh
+      - "${HOST_SSH_DIR:-host-ssh}:/home/jovyan/.ssh:ro"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     environment:
       JUPYTER_ENABLE_LAB: "yes"
@@ -24,6 +28,7 @@ services:
       OPENCODE_PORT: "4096"
       OPENCODE_PROJECT_DIR: "${OPENCODE_PROJECT_DIR:-project}"
       OPENCODE_PROJECT_GIT_URL: "${OPENCODE_PROJECT_GIT_URL:-}"
+      HOST_SSH_ENABLED: "${HOST_SSH_ENABLED:-0}"
       OPENCODE_SERVER_USERNAME: "${OPENCODE_SERVER_USERNAME:-opencode}"
       OPENCODE_SERVER_PASSWORD: "${OPENCODE_SERVER_PASSWORD:?Set OPENCODE_SERVER_PASSWORD in .env}"
       CODE_EXECUTABLE: "code-server"
@@ -44,3 +49,4 @@ volumes:
   opencode-config:
   opencode-cache:
   github-config:
+  host-ssh:

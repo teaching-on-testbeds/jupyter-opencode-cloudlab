@@ -1,56 +1,22 @@
 # CloudLab Jupyter + OpenCode
 
 Launch a JupyterLab + OpenCode environment as a repository-based CloudLab profile.
-Both web applications use the same workspace.
-
-This is the CloudLab counterpart of `teaching-on-testbeds/chi-jupyter-opencode`.
-The Chameleon launch/cleanup notebooks and object-storage integration are intentionally omitted.
-
-## CloudLab profile
-
-CloudLab repository-based profiles automatically clone this repository to:
-
-```text
-/local/repository
-```
-
-The top-level `profile.py` requests one physical node or Xen VM and registers
-a repository-local startup service. The service decrypts the CloudLab-generated
-credentials from the experiment manifest, writes `.env`, then `setup.sh`
-installs Docker and starts JupyterLab and OpenCode. It is idempotent because
-the service runs again after a node reboot with the same per-experiment
-credentials.
 
 ### Parameters
 
 - **Resource Type**: physical node or Xen VM.
 - **Node Type**: optional CloudLab physical node type. For Xen VMs this constrains the VM host.
-- **Xen VM CPU Cores / RAM**: advanced Xen sizing controls.
-- **Temporary Filesystem Size**: requested ephemeral local storage in GB.
-- **Temp Filesystem Max Space**: use all available local storage (`0GB` blockstore convention).
-- **Temporary Filesystem Mount Point**: defaults to `/mydata`.
-- **Public Git Repository URL**: optional advanced HTTPS URL to clone into the project directory.
+- **Xen VM Settings**: collapsed settings for the 80 GB default disk, CPU cores, RAM, and exclusive-host allocation. Xen VMs use an exclusive physical host by default.
+- **Disk Image**: CloudLab image URN, defaulting to the standard Ubuntu 24 image.
+- **Public Git Repository URL (optional)**: blank starts an empty project; an HTTPS URL clones a public repository into the project directory.
 
 The supplied Jupyter/PyTorch CUDA container is x86-64; select an x86-64 CloudLab
 node type. ARM node types are not supported by this image.
 
-If a temporary filesystem is enabled, both the Jupyter workspace and Docker's
-image/layer storage are placed under that filesystem. Otherwise they use `/local`.
-These paths survive a node reboot but are ephemeral and disappear when the
-CloudLab experiment terminates.
-
-## Create the CloudLab profile
-
-1. Push this directory to a public Git repository.
-2. In CloudLab, create a new profile from a Git repository URL.
-3. CloudLab will detect the top-level `profile.py`.
-4. Instantiate the profile and choose the resource/storage parameters.
-
-CloudLab documentation:
-
-- Repository-based profiles: https://docs.cloudlab.us/creating-profiles.html
-- geni-lib profiles: https://docs.cloudlab.us/geni-lib.html
-- Storage: https://docs.cloudlab.us/advanced-storage.html
+The profile requests the maximum available temporary local filesystem at
+`/mydata` (`0GB` blockstore convention). Both the Jupyter workspace and
+Docker's image/layer storage are placed under it. These paths survive a node
+reboot but are ephemeral and disappear when the CloudLab experiment terminates.
 
 ## Access the services
 
@@ -64,99 +30,29 @@ experiment and reused by the running services.
 Then open:
 
 ```text
-http://<node-fqdn>:8888/lab
+http://<node-fqdn>:8888/lab/?token=<jupyter-token>
+http://<node-fqdn>:8888/vscode/?token=<jupyter-token>&folder=/home/jovyan/work/project
 http://<node-fqdn>:4096
 ```
 
-Jupyter uses `JUPYTER_TOKEN`. OpenCode uses `OPENCODE_SERVER_USERNAME` and
-`OPENCODE_SERVER_PASSWORD`.
+JupyterLab and VS Code use `JUPYTER_TOKEN`. OpenCode uses
+`OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`.
 
-### SSH forwarding (recommended for encrypted transport)
 
-Direct access to ports 8888 and 4096 is HTTP, so credentials and traffic are
-not encrypted. You can instead bind the services to loopback by changing
-`BIND_ADDRESS=127.0.0.1` in `/local/repository/.env`, restarting Compose, and
-forwarding the ports over SSH:
+## Host access from OpenCode
 
-```bash
-ssh -L 8888:127.0.0.1:8888 -L 4096:127.0.0.1:4096 <cloudlab-user>@<node-fqdn>
-```
+CloudLab startup creates an `opencode` user on the host and gives it
+passwordless sudo access. It also generates a dedicated SSH key, mounts the
+private key read-only in the container, and pins the host's SSH keys. The
+container remains unprivileged.
 
-Then use `http://127.0.0.1:8888/lab` and `http://127.0.0.1:4096` locally.
-
-## Service management
+Each project contains `HOST.md` with the command OpenCode can use to run
+commands on the host:
 
 ```bash
-cd /local/repository
-sudo docker compose ps
-sudo docker compose logs -f jupyter
-sudo docker compose restart
+ssh -i /home/jovyan/.ssh/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes -o UpdateHostKeys=no opencode@host.docker.internal '<command>'
 ```
 
-Startup-script output is written to:
-
-```text
-/var/log/cloudlab-jupyter-opencode-setup.log
-```
-
-## GPU nodes
-
-The repository retains the optional GPU Compose overlay from the Chameleon
-version. If the selected physical CloudLab node has a working NVIDIA driver and
-NVIDIA Container Toolkit, restart with:
-
-```bash
-cd /local/repository
-sudo docker compose -f compose.yaml -f compose.gpu.yaml up --build -d
-```
-
-Check access with:
-
-```bash
-sudo docker compose exec jupyter nvidia-smi
-sudo docker compose exec jupyter python -c 'import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))'
-```
-
-## Local/manual startup
-
-Outside CloudLab, copy `.env.example` to `.env`, replace the two credential
-placeholders, and run:
-
-```bash
-docker compose up --build -d
-```
-
-On first startup, the container creates
-`/home/jovyan/work/<OPENCODE_PROJECT_DIR>` as a Git repository. The default
-Kilo Anonymous provider and `Kilo Auto Free` model are configured
-automatically. JupyterLab starts alongside OpenCode and uses
-`/home/jovyan/work` as its root.
-
-The JupyterLab Launcher also includes a **VS Code** tile. It opens a
-browser-based `code-server` tab, proxied through Jupyter, at the configured
-OpenCode project directory. Rebuild the image after enabling it:
-
-```bash
-docker compose up --build -d
-```
-
-The OpenCode Profile Instructions link opens the project directly with
-`/<base64(directory)>/session`. OpenCode creates the project instance when the
-browser requests that route, so the home page does not need to discover it
-first.
-
-The profile uses the maximum available temporary filesystem by default. Docker
-stores its images, layers, and named volumes under `/mydata/docker`. The
-project directory maps to `/mydata/jupyter-data/project` on the host.
-
-The advanced **Public Git Repository URL** parameter accepts an HTTPS URL. On
-the first startup, the container runs `git clone <url> project`, so the
-repository contents become `/home/jovyan/work/project` itself. That directory
-maps to `/mydata/jupyter-data/project`. A later restart keeps the existing
-checkout and does not clone over it. The container refuses to use a non-empty
-non-Git directory when a clone URL is configured.
-
-The bind-mounted project and named OpenCode volumes persist across container
-restarts and normal `docker compose up` runs. CloudLab's `/mydata` filesystem
-is temporary for the experiment, so the data disappears when the experiment
-terminates. `docker compose down -v` also deletes the named OpenCode volumes.
+Prefix the remote command with `sudo` when root access is required. Anyone who
+can execute commands in the container can use this key for root-equivalent
+access to the experiment host.

@@ -1,17 +1,28 @@
 """Launch JupyterLab and OpenCode on a CloudLab node.
 
-This repository is intended to be used as a repository-based CloudLab profile.
-CloudLab automatically clones the repository to /local/repository on the
-experiment node and runs the included startup script.
+This profile sets up a CloudLab node with JupyterLab, VSCode, and OpenCode.
+
+With this profile:
+
+* you can work with your code in JupyterLab or VSCode,
+* and you can also interact with your code, the coding environment, and the CloudLab host itself by giving natural language commands to OpenCode, an LLM coding assistant.
+
+OpenCode comes pre-configured with access to two free and anonymous LLM inference providers.
+
+After you instantiate this profile, the "Profile Instructions" will show links and credentials for JupyterLab, VSCode, and OpenCode.
 
 Instructions:
-Wait for the experiment to become ready and for the startup service to finish.
+Wait for the experiment to become ready and for the startup service to finish. Then, you can open these services in a web browser:
 
 ## JupyterLab
 
 URL: http://{host-node}:8888/lab?token={password-jupyterToken}
 
 Token: `{password-jupyterToken}`
+
+## VS Code
+
+URL: http://{host-node}:8888/vscode/?token={password-jupyterToken}&folder=/home/jovyan/work/project
 
 ## OpenCode
 
@@ -21,16 +32,6 @@ Username: `opencode`
 
 Password: `{password-opencodePassword}`
 
-## SSH
-
-The repository is available at `/local/repository`.
-
-If the services are still starting, inspect:
-
-    sudo tail -f /var/log/cloudlab-jupyter-opencode-setup.log
-
-Direct HTTP access is not encrypted. For an encrypted connection, use SSH
-port forwarding as described in README.md.
 """
 
 import re
@@ -77,14 +78,14 @@ pc.defineParameter(
     ),
 )
 
-# Xen VM sizing. These are advanced because most users only need to choose
-# physical vs. Xen and can keep these defaults.
+pc.defineParameterGroup("xen", "Xen VM Settings")
+
 pc.defineParameter(
     "xenCores",
     "Xen VM CPU Cores",
     portal.ParameterType.INTEGER,
     4,
-    advanced=True,
+    groupId="xen",
     longDescription="Number of virtual CPU cores when Resource Type is Xen VM.",
 )
 
@@ -93,55 +94,52 @@ pc.defineParameter(
     "Xen VM RAM (MB)",
     portal.ParameterType.INTEGER,
     8192,
-    advanced=True,
+    groupId="xen",
     longDescription="RAM in MB when Resource Type is Xen VM.",
 )
 
-# Match the familiar CloudLab temporary-filesystem controls.
 pc.defineParameter(
-    "tempFileSystemSize",
-    "Temporary Filesystem Size",
+    "xenDisk",
+    "Xen VM Disk Size (GB)",
     portal.ParameterType.INTEGER,
-    0,
-    advanced=True,
-    longDescription=(
-        "Size in GB of an ephemeral local filesystem. Set to zero to disable "
-        "unless Temp Filesystem Max Space is selected. The filesystem is lost "
-        "when the experiment terminates."
-    ),
+    80,
+    groupId="xen",
+    longDescription="Disk size in GB when Resource Type is Xen VM.",
 )
 
 pc.defineParameter(
-    "tempFileSystemMax",
-    "Temp Filesystem Max Space",
+    "xenExclusive",
+    "Exclusive Xen VM Host",
     portal.ParameterType.BOOLEAN,
     True,
-    advanced=True,
+    groupId="xen",
     longDescription=(
-        "Use all available local space for the temporary filesystem. This is "
-        "the default. Leave Temporary Filesystem Size at zero when selecting "
-        "this option."
+        "Reserve the Xen VM's physical host exclusively for this experiment. "
+        "Disable this to allow the host to be shared with other experiments."
     ),
 )
 
 pc.defineParameter(
-    "tempFileSystemMount",
-    "Temporary Filesystem Mount Point",
-    portal.ParameterType.STRING,
-    "/mydata",
-    advanced=True,
-    longDescription="Mount point for the ephemeral temporary filesystem.",
+    "diskImage",
+    "Disk Image",
+    portal.ParameterType.IMAGE,
+    "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD",
+    longDescription=(
+        "CloudLab image URN to install on the node. The default is the "
+        "standard Ubuntu 24 image; replace it with another image URN when "
+        "needed."
+    ),
 )
 
 pc.defineParameter(
     "publicGitUrl",
-    "Public Git Repository URL",
+    "Public Git Repository URL (optional)",
     portal.ParameterType.STRING,
     "",
-    advanced=True,
     longDescription=(
-        "Optional HTTPS URL for a public Git repository. The repository is "
-        "cloned into the project directory on first startup."
+        "Leave blank to start with an empty Git repository. If supplied, use "
+        "an HTTPS URL for a public Git repository; it is cloned into "
+        "/home/jovyan/work/project on first startup."
     ),
 )
 
@@ -164,27 +162,19 @@ if params.xenRam < 1024:
         )
     )
 
-if params.tempFileSystemSize < 0:
+if params.xenDisk < 1:
     pc.reportError(
         portal.ParameterError(
-            "Temporary filesystem size cannot be negative.",
-            ["tempFileSystemSize"],
+            "Xen VM disk size must be at least 1 GB.",
+            ["xenDisk"],
         )
     )
 
-if params.tempFileSystemMax and params.tempFileSystemSize != 0:
+if not params.diskImage.startswith("urn:"):
     pc.reportError(
         portal.ParameterError(
-            "Set Temporary Filesystem Size to zero when requesting max space.",
-            ["tempFileSystemSize", "tempFileSystemMax"],
-        )
-    )
-
-if not re.match(r"^/[A-Za-z0-9._/-]+$", params.tempFileSystemMount):
-    pc.reportError(
-        portal.ParameterError(
-            "Temporary filesystem mount point must be an absolute path.",
-            ["tempFileSystemMount"],
+            "Disk Image must be a CloudLab image URN.",
+            ["diskImage"],
         )
     )
 
@@ -196,14 +186,6 @@ if params.publicGitUrl:
                 ["publicGitUrl"],
             )
         )
-
-if params.tempFileSystemMount in ("/", "/usr", "/usr/local", "/local/repository"):
-    pc.reportError(
-        portal.ParameterError(
-            "Choose a dedicated mount point such as /mydata; do not cover a system directory.",
-            ["tempFileSystemMount"],
-        )
-    )
 
 pc.verifyParameters()
 
@@ -218,9 +200,10 @@ request.addResource(jupyter_token)
 request.addResource(opencode_password)
 
 if params.resourceType == "xenvm":
-    node = request.XenVM("node")
+    node = request.XenVM("node", exclusive=params.xenExclusive)
     node.cores = params.xenCores
     node.ram = params.xenRam
+    node.disk = params.xenDisk
     node.routable_control_ip = True
     if params.nodeType:
         node.xen_ptype = params.nodeType
@@ -229,22 +212,13 @@ else:
     if params.nodeType:
         node.hardware_type = params.nodeType
 
-# Use a current CloudLab-provided x86-64 Ubuntu image. The Jupyter/OpenCode
-# environment itself is containerized, so the host image stays minimal.
-node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD"
+node.disk_image = params.diskImage
 
-use_temp_fs = params.tempFileSystemMax or params.tempFileSystemSize > 0
-if use_temp_fs:
-    blockstore = node.Blockstore("scratch", params.tempFileSystemMount)
-    if params.tempFileSystemMax:
-        # CloudLab convention: 0GB means use the maximum available space.
-        blockstore.size = "0GB"
-    else:
-        blockstore.size = str(params.tempFileSystemSize) + "GB"
-    blockstore.placement = "any"
-    data_root = params.tempFileSystemMount
-else:
-    data_root = "/local"
+# CloudLab convention: a 0GB local blockstore uses all available space.
+blockstore = node.Blockstore("scratch", "/mydata")
+blockstore.size = "0GB"
+blockstore.placement = "any"
+data_root = "/mydata"
 
 # Repository-based profiles are cloned automatically to /local/repository.
 # Execute services run after the repository is available and on node boots.
