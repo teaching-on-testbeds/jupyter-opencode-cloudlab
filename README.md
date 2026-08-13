@@ -126,5 +126,22 @@ docker compose up --build -d
 ```
 
 On first startup, the container creates
-`/home/jovyan/work/<OPENCODE_PROJECT_DIR>` as a Git repository and opens it as
-OpenCode's default project. JupyterLab uses `/home/jovyan/work` as its root.
+`/home/jovyan/work/<OPENCODE_PROJECT_DIR>` as a Git repository and registers it
+with OpenCode before starting JupyterLab. The default Kilo Anonymous provider
+and `Kilo Auto Free` model are configured automatically. JupyterLab uses
+`/home/jovyan/work` as its root.
+
+The JupyterLab Launcher also includes a **VS Code** tile. It opens a
+browser-based `code-server` tab, proxied through Jupyter, at the configured
+OpenCode project directory. Rebuild the image after enabling it:
+
+```bash
+docker compose up --build -d
+```
+
+The OpenCode web client keeps its project switcher in browser storage. The
+startup registration is needed because `opencode web` starts without an
+ambient project instance; it makes `/home/jovyan/work/<OPENCODE_PROJECT_DIR>` a
+known Git project in OpenCode's API. A browser profile that has never opened it
+still needs **Add project** once because that client-side list cannot be
+written by the server.

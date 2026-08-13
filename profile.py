@@ -15,7 +15,7 @@ Token: `{password-jupyterToken}`
 
 ## OpenCode
 
-URL: http://{host-node}:4096
+URL: http://{host-node}:4096/L2hvbWUvam92eWFuL3dvcmsvcHJvamVjdA/session
 
 Username: `opencode`
 

@@ -14,6 +14,9 @@ RUN apt-get update \
         gh \
     && rm -rf /var/lib/apt/lists/*
 
+# jupyter-vscode-proxy launches code-server as a JupyterLab browser tab.
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
 USER ${NB_UID}
 
 ENV PATH="/home/jovyan/.opencode/bin:${PATH}"
@@ -27,11 +30,16 @@ RUN mkdir -p \
         /home/jovyan/.config/gh
 
 # Keep python-dotenv from the original environment, but omit the Chameleon
-# object-storage packages (aiobotocore, boto3, fsspec, s3fs).
-RUN python -m pip install --no-cache-dir python-dotenv==1.2.2
+# object-storage packages (aiobotocore, boto3, fsspec, s3fs). The VS Code proxy
+# adds a VS Code launcher to JupyterLab and routes it through Jupyter.
+RUN python -m pip install --no-cache-dir \
+        python-dotenv==1.2.2 \
+        jupyter-server-proxy \
+        jupyter-vscode-proxy==0.7
 
 USER root
 COPY start-services.sh /usr/local/bin/start-services.sh
+COPY opencode.json /opt/cloudlab/opencode.json
 RUN chmod 0755 /usr/local/bin/start-services.sh \
     && chown ${NB_UID}:${NB_GID} /usr/local/bin/start-services.sh \
     && fix-permissions /home/jovyan
