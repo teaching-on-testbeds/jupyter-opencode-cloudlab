@@ -204,7 +204,6 @@ if params.resourceType == "xenvm":
     node.cores = params.xenCores
     node.ram = params.xenRam
     node.disk = params.xenDisk
-    node.routable_control_ip = True
     if params.nodeType:
         node.xen_ptype = params.nodeType
 else:
