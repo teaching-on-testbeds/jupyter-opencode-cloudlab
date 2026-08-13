@@ -234,7 +234,7 @@ else:
 
 # Use a current CloudLab-provided x86-64 Ubuntu image. The Jupyter/OpenCode
 # environment itself is containerized, so the host image stays minimal.
-node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD"
+node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD"
 
 use_temp_fs = params.tempFileSystemMax or params.tempFileSystemSize > 0
 if use_temp_fs:
