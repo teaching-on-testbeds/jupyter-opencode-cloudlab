@@ -217,7 +217,7 @@ node.disk_image = params.diskImage
 blockstore = node.Blockstore("scratch", "/mydata")
 if params.resourceType == "xenvm":
     # Xen topology validation requires an explicit positive blockstore size.
-    blockstore.size = f"{params.xenDisk}GB"
+    blockstore.size = "{}GB".format(params.xenDisk)
 else:
     # A 0GB local blockstore uses all available space on physical nodes.
     blockstore.size = "0GB"
