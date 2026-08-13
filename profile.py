@@ -205,8 +205,7 @@ if params.resourceType == "xenvm":
     node.ram = params.xenRam
     node.disk = params.xenDisk
     node.routable_control_ip = True
-    if params.nodeType:
-        node.xen_ptype = params.nodeType
+    node.xen_ptype = params.nodeType or "x86-64-vm"
 else:
     node = request.RawPC("node")
     if params.nodeType:
