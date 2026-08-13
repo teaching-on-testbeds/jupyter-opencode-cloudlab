@@ -123,10 +123,10 @@ pc.defineParameter(
     "diskImage",
     "Disk Image",
     portal.ParameterType.IMAGE,
-    "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD",
+    "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD",
     longDescription=(
         "CloudLab image URN to install on the node. The default is the "
-        "standard Ubuntu 24 image; replace it with another image URN when "
+        "standard Ubuntu 22 image; replace it with another image URN when "
         "needed."
     ),
 )
@@ -205,7 +205,8 @@ if params.resourceType == "xenvm":
     node.ram = params.xenRam
     node.disk = params.xenDisk
     node.routable_control_ip = True
-    node.xen_ptype = params.nodeType or "x86_64-vm"
+    if params.nodeType:
+        node.xen_ptype = params.nodeType
 else:
     node = request.RawPC("node")
     if params.nodeType:
