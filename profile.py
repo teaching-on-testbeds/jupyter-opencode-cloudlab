@@ -35,7 +35,6 @@ port forwarding as described in README.md.
 
 import re
 import shlex
-from urllib.parse import urlparse
 
 import geni.portal as portal
 import geni.rspec.igext as ig
@@ -186,13 +185,7 @@ if not re.match(r"^/[A-Za-z0-9._/-]+$", params.tempFileSystemMount):
     )
 
 if params.publicGitUrl:
-    parsed_git_url = urlparse(params.publicGitUrl)
-    if (
-        parsed_git_url.scheme != "https"
-        or not parsed_git_url.netloc
-        or "\n" in params.publicGitUrl
-        or "\r" in params.publicGitUrl
-    ):
+    if not re.match(r"^https://[^/\s]+(?:/[^\r\n]*)?$", params.publicGitUrl):
         pc.reportError(
             portal.ParameterError(
                 "Public Git Repository URL must be an HTTPS URL.",
