@@ -138,6 +138,7 @@ install_nvidia_driver() {
     ubuntu-drivers install --gpgpu || return 1
 
     driver_package="$(ubuntu-drivers list --gpgpu | awk '/^nvidia-driver-[0-9]+-server/{print $1; exit}')"
+    driver_package="${driver_package%,}"
     [[ -n "${driver_package}" ]] || return 1
     driver_suffix="${driver_package#nvidia-driver-}"
     utils_package="nvidia-utils-${driver_suffix%-open}"
