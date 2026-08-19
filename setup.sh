@@ -124,6 +124,7 @@ wait_for_nvidia_driver() {
 
 install_nvidia_driver() {
     local kernel_headers="linux-headers-$(uname -r)"
+    local driver_package driver_suffix utils_package kernel_module
 
     if [[ "${ALLOW_HOST_NVIDIA_DRIVER_INSTALL}" != "1" ]]; then
         echo "NVIDIA hardware detected, but automatic host driver installation is disabled."
@@ -135,6 +136,14 @@ install_nvidia_driver() {
     apt-get update || return 1
     apt-get install -y ubuntu-drivers-common "${kernel_headers}" || return 1
     ubuntu-drivers install --gpgpu || return 1
+
+    driver_package="$(ubuntu-drivers list --gpgpu | awk '/^nvidia-driver-[0-9]+-server/{print $1; exit}')"
+    [[ -n "${driver_package}" ]] || return 1
+    driver_suffix="${driver_package#nvidia-driver-}"
+    utils_package="nvidia-utils-${driver_suffix%-open}"
+    kernel_module="linux-modules-nvidia-${driver_suffix}-$(uname -r)"
+    apt-get install -y "${utils_package}" "${kernel_module}" || return 1
+    modprobe nvidia || return 1
 }
 
 install_nvidia_container_toolkit() {
