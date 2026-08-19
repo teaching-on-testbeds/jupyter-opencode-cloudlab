@@ -42,7 +42,7 @@ read_env_option() {
 GPU_MODE="${GPU_MODE:-$(read_env_option GPU_MODE)}"
 GPU_MODE="${GPU_MODE:-auto}"
 ALLOW_HOST_NVIDIA_DRIVER_INSTALL="${ALLOW_HOST_NVIDIA_DRIVER_INSTALL:-$(read_env_option ALLOW_HOST_NVIDIA_DRIVER_INSTALL)}"
-ALLOW_HOST_NVIDIA_DRIVER_INSTALL="${ALLOW_HOST_NVIDIA_DRIVER_INSTALL:-0}"
+ALLOW_HOST_NVIDIA_DRIVER_INSTALL="${ALLOW_HOST_NVIDIA_DRIVER_INSTALL:-1}"
 
 case "${GPU_MODE}" in
     auto|cpu|gpu)
@@ -107,6 +107,19 @@ has_nvidia_hardware() {
 
 has_nvidia_driver() {
     command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1
+}
+
+wait_for_nvidia_driver() {
+    local attempt
+
+    for attempt in {1..12}; do
+        if has_nvidia_driver; then
+            return 0
+        fi
+        echo "Waiting for the NVIDIA driver (attempt ${attempt}/12)."
+        sleep 5
+    done
+    return 1
 }
 
 install_nvidia_driver() {
@@ -211,20 +224,20 @@ setup_gpu_support() {
     if ! has_nvidia_driver; then
         echo "NVIDIA driver is not ready."
         if ! install_nvidia_driver; then
-            echo "Continuing in CPU mode; set ALLOW_HOST_NVIDIA_DRIVER_INSTALL=1 to permit driver installation."
+            echo "Waiting for the host NVIDIA driver to become ready."
         fi
     fi
 
-    if ! install_nvidia_container_toolkit; then
-        echo "WARNING: NVIDIA Container Toolkit installation failed; using CPU mode." >&2
+    if ! wait_for_nvidia_driver; then
+        echo "WARNING: NVIDIA driver is unavailable; using CPU mode until the host driver is ready." >&2
         if [[ "${GPU_MODE}" == "gpu" ]]; then
             return 1
         fi
         return 0
     fi
 
-    if ! has_nvidia_driver; then
-        echo "WARNING: NVIDIA driver is unavailable; using CPU mode until the host driver is ready." >&2
+    if ! install_nvidia_container_toolkit; then
+        echo "WARNING: NVIDIA Container Toolkit installation failed; using CPU mode." >&2
         if [[ "${GPU_MODE}" == "gpu" ]]; then
             return 1
         fi

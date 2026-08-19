@@ -1,3 +1,8 @@
 services:
   jupyter:
-    gpus: all
+    # Use the explicit NVIDIA runtime. Docker 29 may resolve the generic
+    # `gpus: all` request through an unrelated AMD CDI provider.
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
